@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Petualangan Penjaga Konstitusi 3D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Roboto:wght@400;700&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            touch-action: none; 
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #2c3e50, #000);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud {
+            padding: 15px;
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(14px, 2vw, 24px); 
+            color: white;
+            text-shadow: 2px 2px 0px #000, 0 0 10px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+            z-index: 10;
+        }
+
+        /* Audio Control Button */
+        .audio-ctrl {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid white;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 100;
+            transition: transform 0.1s, background 0.2s;
+        }
+        .audio-ctrl:active { transform: scale(0.9); background: rgba(255,255,255,0.2); }
+
+        /* Powerup Indicator */
+        #power-indicator {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            font-family: 'Fredoka One', cursive;
+            color: #00ff00;
+            text-shadow: 0 0 5px #fff;
+            display: none;
+            font-size: clamp(16px, 2.5vw, 28px);
+            animation: pulse 0.5s infinite alternate;
+            z-index: 10;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); opacity: 0.8; }
+            to { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* Modal Pertanyaan & Jawaban */
+        #question-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            color: #333;
+            padding: 20px;
+            border-radius: 15px;
+            width: 85%;
+            max-width: 500px;
+            text-align: center;
+            display: none;
+            pointer-events: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 5px rgba(255, 255, 255, 0.2);
+            border: none;
+            z-index: 100;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: translate(-50%, -60%) scale(0.9); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        #question-modal h3 {
+            margin-top: 0;
+            color: #d35400;
+            font-family: 'Fredoka One', cursive;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: clamp(18px, 3vw, 28px);
+        }
+
+        #question-text {
+            font-size: clamp(14px, 2.5vw, 20px);
+            margin-bottom: 25px;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+
+        .option-btn, .action-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: linear-gradient(to bottom, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: clamp(14px, 2.5vw, 18px);
+            font-weight: bold;
+            box-shadow: 0 4px 0 #1c6ea4;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .option-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #1c6ea4;
+        }
+
+        .option-btn:active, .action-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #1c6ea4;
+        }
+
+        .action-btn {
+            background: linear-gradient(to bottom, #2ecc71, #27ae60);
+            box-shadow: 0 4px 0 #219150;
+            margin-top: 20px;
+        }
+        
+        .result-box {
+            background: #f8f9fa;
+            border-left: 5px solid #ccc;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: left;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+        
+        .correct-tag { color: #27ae60; font-weight: bold; }
+        .wrong-tag { color: #c0392b; font-weight: bold; }
+
+        #answer-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 15px;
+            font-size: 1.2em;
+            text-align: center;
+            margin-bottom: 15px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            text-transform: uppercase;
+            outline: none;
+        }
+        #answer-input:focus { border-color: #3498db; }
+
+        /* Screens */
+        #start-screen, #game-over-screen, #level-complete-screen, #victory-screen, #bad-ending-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(44, 62, 80, 0.95), rgba(0, 0, 0, 0.98));
+            backdrop-filter: blur(10px); 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 99;
+            text-align: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        #victory-screen { display: none; background: rgba(39, 174, 96, 0.95); }
+        #bad-ending-screen { display: none; background: rgba(192, 57, 43, 0.95); }
+
+        #start-screen h1 {
+            font-family: 'Fredoka One', cursive;
+            color: #f1c40f;
+            font-size: clamp(24px, 5vw, 48px); 
+            text-shadow: 4px 4px 0 #e67e22, 0 0 20px rgba(241, 196, 15, 0.6);
+            margin-bottom: 15px;
+            padding: 0 20px;
+            letter-spacing: 2px;
+            animation: titleFloat 3s ease-in-out infinite;
+            margin-top: 30px;
+        }
+
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        #start-screen p {
+            font-size: clamp(14px, 2.5vw, 20px);
+            max-width: 700px;
+            padding: 0 20px;
+            line-height: 1.6;
+            color: #ecf0f1;
+            font-weight: 300;
+        }
+
+        .dev-credit {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin-top: 15px;
+            font-size: clamp(10px, 1.5vw, 14px);
+            color: #bdc3c7;
+            backdrop-filter: blur(4px);
+        }
+
+        button.main-btn {
+            padding: 15px 40px;
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(16px, 3vw, 24px);
+            background: linear-gradient(to bottom, #e74c3c, #c0392b);
+            color: white;
+            border: 4px solid #fff;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 35px;
+            box-shadow: 0 8px 0 #922b21, 0 10px 20px rgba(0,0,0,0.4);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: btnPulse 2s infinite;
+        }
+
+        button.main-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 12px 0 #922b21, 0 15px 30px rgba(231, 76, 60, 0.6);
+            background: linear-gradient(to bottom, #ff5e4d, #d64535);
+        }
+
+        button.main-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #922b21;
+        }
+
+        @keyframes btnPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            display: none; 
+            width: 100%;
+            height: auto;
+            position: absolute;
+            bottom: 20px;
+            pointer-events: none; 
+            padding: 0 20px;
+            box-sizing: border-box;
+            justify-content: space-between;
+            z-index: 50;
+        }
+
+        .control-group {
+            pointer-events: auto; 
+            display: flex;
+            gap: 20px;
+        }
+
+        .control-btn {
+            width: clamp(60px, 12vw, 90px);
+            height: clamp(60px, 12vw, 90px);
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(24px, 5vw, 40px);
+            color: white;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            user-select: none;
+            touch-action: manipulation;
+            transition: background 0.1s, transform 0.1s;
+        }
+        
+        .control-btn:active, .control-btn.active {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(0.9);
+        }
+
+        .control-btn span {
+            pointer-events: none;
+        }
+
+        #feedback-msg {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(20px, 4vw, 36px);
+            color: #ffd700;
+            text-shadow: 0 4px 0 #b8860b, 0 0 20px rgba(255, 215, 0, 0.5);
+            display: none;
+            z-index: 101;
+            white-space: nowrap;
+            animation: floatUp 1s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -80%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -100%) scale(1); opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="hud">
+            <div>⭐ SKOR: <span id="score">0</span></div>
+            <div>🚩 LEVEL: <span id="level">1</span></div>
+            <div>❤️ NYAWA: <span id="lives">5</span></div>
+        </div>
+        
+        <div id="power-indicator">★ MODE SUPER AKTIF! ★</div>
+
+        <!-- Tombol Audio -->
+        <button id="audio-toggle" class="audio-ctrl" onclick="toggleAudio()">🔊</button>
+
+        <div id="feedback-msg">BENAR!</div>
+
+        <!-- Touch Controls -->
+        <div id="mobile-controls">
+            <div class="control-group">
+                <div class="control-btn" id="btn-left" data-key="left"><span>◀</span></div>
+                <div class="control-btn" id="btn-right" data-key="right"><span>▶</span></div>
+            </div>
+            <div class="control-group">
+                <div class="control-btn" id="btn-jump" data-key="up" style="background: rgba(231, 76, 60, 0.4); border-color: rgba(231, 76, 60, 0.8);"><span>▲</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1 style="margin-top: 30px;">PETUALANGAN<br>PENJAGA KONSTITUSI</h1>
+        <p style="font-size: 1.2em; margin-bottom: 20px;">Bantu "Pak Anggi" memahami lembaga negara<br>dalam petualangan mario civics!</p>
+        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.2);">
+            <p style="font-size: 0.9em; margin: 0;">🎮 <b>Kontrol:</b> Panah / Tombol Layar (Kiri/Kanan/Lompat)</p>
+            <p style="font-size: 0.9em; margin: 5px 0 0 0;">💡 Jawab pertanyaan untuk dapat poin!</p>
+            <p style="font-size: 0.9em; margin: 5px 0 0 0; color: #f1c40f;">⚠️ > 70% Benar = Bertemu Putri, < 70% = Jurang Api!</p>
+        </div>
+        
+        <button class="main-btn" onclick="startGame()">MULAI PETUALANGAN ▶</button>
+        
+        <div class="dev-credit">
+            Pengembang: <b>Anggi Perdana</b><br>
+            <span style="font-size: 0.85em; opacity: 0.8;">(Guru Pejuang Digital || Duta Teknologi)</span>
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="question-modal">
+        <h3 id="q-title">PERTANYAAN</h3>
+        <p id="q-type-label" style="font-size: 0.9em; color: #7f8c8d; font-weight: bold;"></p>
+        <div id="question-content">
+            <div id="question-text">...</div>
+            <div id="options-container"></div>
+        </div>
+        <!-- Result Display Area -->
+        <div id="result-area" style="display:none;">
+            <div id="result-message" style="font-size: 1.5em; font-family: 'Fredoka One', cursive; margin-bottom: 10px;"></div>
+            <div class="result-box">
+                <div style="margin-bottom: 5px; font-size: 0.8em; color: #777;">JAWABAN YANG BENAR:</div>
+                <div id="correct-answer-text" style="font-weight: bold; color: #2c3e50;"></div>
+                <div id="explanation-text" style="margin-top: 10px; font-style: italic; color: #555; font-size: 0.9em;"></div>
+            </div>
+            <button class="action-btn" onclick="closeModalAndResume()">LANJUT PETUALANGAN ▶</button>
+        </div>
+    </div>
+
+    <!-- Level Complete -->
+    <div id="level-complete-screen" style="display:none;">
+        <h1>LEVEL SELESAI!</h1>
+        <p>Hebat! Kamu semakin paham konstitusi.</p>
+        <p>Skor Level Ini: <span id="level-score">0</span></p>
+        <button class="main-btn" id="next-level-btn" onclick="nextLevel()">LEVEL SELANJUTNYA ▶</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over-screen" style="display:none;">
+        <h1 style="color: #e74c3c;">PERMAINAN BERAKHIR</h1>
+        <p>Jangan menyerah! Belajar lagi dan coba lagi.</p>
+        <p>Skor Akhir: <span id="final-score">0</span></p>
+        <button class="main-btn" onclick="location.reload()">COBA LAGI ↺</button>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory-screen">
+        <h1 style="color: #f1c40f;">SELAMAT!</h1>
+        <p style="font-size: 1.2em;">Kamu telah menemukan Sang Putri dan<br>menjadi Penjaga Konstitusi Sejati!</p>
+        <div style="font-size: 3em; margin: 20px;">👸🏰🤴</div>
+        <p>Akurasi Jawaban: <span id="win-accuracy">0</span>%</p>
+        <p>Skor Akhir: <span id="win-score">0</span></p>
+        <button class="main-btn" onclick="location.reload()">MAIN LAGI</button>
+    </div>
+
+    <!-- Bad Ending Screen -->
+    <div id="bad-ending-screen">
+        <h1 style="color: #000;">GAGAL!</h1>
+        <p style="font-size: 1.2em;">Nilai kamu kurang dari 70%.<br>Kamu terjatuh ke jurang api...</p>
+        <div style="font-size: 3em; margin: 20px;">🔥💀🔥</div>
+        <p>Akurasi Jawaban: <span id="lose-accuracy">0</span>%</p>
+        <button class="main-btn" onclick="location.reload()">COBA LAGI</button>
+    </div>
+
+    <!-- Background Music -->
+    <audio id="bgm" loop>
+        <source src="https://github.com/anggiggd2/backsounmario/raw/refs/heads/main/super-mario-bros-music.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Level Complete Sound -->
+    <audio id="sfx-win">
+        <source src="https://ia800504.us.archive.org/33/items/smb_stage_clear/smb_stage_clear.mp3" type="audio/mpeg">
+    </audio>
+</div>
+
+<script>
+/**
+ * ASSETS
+ */
+const bgImage = new Image();
+bgImage.src = 'https://i.imgur.com/MwMStu0.png';
+
+/**
+ * AUDIO CONTROL
+ */
+let isMuted = false;
+
+function toggleAudio() {
+    isMuted = !isMuted;
+    const bgm = document.getElementById('bgm');
+    const btn = document.getElementById('audio-toggle');
+    const sfxWin = document.getElementById('sfx-win');
+    
+    if (isMuted) {
+        bgm.pause();
+        sfxWin.pause();
+        btn.innerHTML = "🔇";
+    } else {
+        if(currentState === 'PLAYING' || currentState === 'FLAG_ANIMATION') {
+             bgm.play().catch(e => console.log(e));
+        }
+        btn.innerHTML = "🔊";
+    }
+}
+
+/**
+ * THEMES CONFIGURATION
+ */
+const themes = {
+    1: { sky: ['#87CEEB', '#E0F7FA'], ground: '#4CAF50', dirt: '#795548', brick: '#d35400', decor: 'clouds' },
+    2: { sky: ['#FDB813', '#F2C94C'], ground: '#F4A460', dirt: '#D2691E', brick: '#A0522D', decor: 'pyramids' },
+    3: { sky: ['#FF512F', '#DD2476'], ground: '#5D4037', dirt: '#3E2723', brick: '#8D6E63', decor: 'trees' },
+    4: { sky: ['#0f2027', '#203a43'], ground: '#CFD8DC', dirt: '#607D8B', brick: '#546E7A', decor: 'stars' },
+    5: { sky: ['#232526', '#414345'], ground: '#BDBDBD', dirt: '#757575', brick: '#424242', decor: 'pillars' }
+};
+
+let currentTheme = themes[1];
+
+/**
+ * DATA PERTANYAAN
+ */
+const questionsData = {
+    1: [
+        { type: 'scramble', word: 'MONTESQUIEU', clue: 'Tokoh pelopor Trias Politica', scrambled: 'U-E-I-Q-S-E-T-N-O-M', correctText: 'MONTESQUIEU' },
+        { type: 'scramble', word: 'EKSEKUTIF', clue: 'Kekuasaan melaksanakan Undang-Undang', scrambled: 'F-I-T-U-K-E-S-K-E', correctText: 'EKSEKUTIF' },
+        { type: 'scramble', word: 'LEGISLATIF', clue: 'Kekuasaan membuat Undang-Undang', scrambled: 'F-I-T-A-L-S-I-G-E-L', correctText: 'LEGISLATIF' },
+        { type: 'scramble', word: 'YUDIKATIF', clue: 'Kekuasaan mengadili pelanggaran UU', scrambled: 'F-I-T-A-K-I-D-U-Y', correctText: 'YUDIKATIF' },
+        { type: 'scramble', word: 'EKSAMINATIF', clue: 'Kekuasaan pemeriksaan keuangan negara (BPK)', scrambled: 'F-I-T-A-N-I-M-A-S-K-E', correctText: 'EKSAMINATIF' },
+        { type: 'scramble', word: 'MONETER', clue: 'Kekuasaan kebijakan perbankan & uang', scrambled: 'R-E-T-E-N-O-M', correctText: 'MONETER' },
+        { type: 'scramble', word: 'KONSTITUTIF', clue: 'Kekuasaan mengubah & menetapkan UUD', scrambled: 'F-I-T-U-T-I-T-S-N-O-K', correctText: 'KONSTITUTIF' },
+        { type: 'scramble', word: 'JOHN LOCKE', clue: 'Pencetus awal pemisahan kekuasaan', scrambled: 'E-K-C-O-L N-H-O-J', correctText: 'JOHN LOCKE' },
+        { type: 'scramble', word: 'TRIAS POLITICA', clue: 'Konsep pembagian 3 kekuasaan negara', scrambled: 'A-C-I-T-I-L-O-P S-A-I-R-T', correctText: 'TRIAS POLITICA' },
+        { type: 'scramble', word: 'PRESIDENSIL', clue: 'Sistem pemerintahan yang dianut Indonesia', scrambled: 'L-I-S-N-E-D-I-S-E-R-P', correctText: 'PRESIDENSIL' }
+    ],
+    2: [
+        { type: 'bool', q: 'Presiden memegang kekuasaan Eksekutif.', a: true, correctText: 'BENAR. Presiden adalah pemegang kekuasaan eksekutif.' },
+        { type: 'bool', q: 'DPR dan DPD memegang kekuasaan Yudikatif.', a: false, correctText: 'SALAH. DPR dan DPD adalah lembaga Legislatif.' },
+        { type: 'bool', q: 'BPK memegang kekuasaan Eksaminatif.', a: true, correctText: 'BENAR. BPK bertugas memeriksa keuangan negara.' },
+        { type: 'bool', q: 'Bank Indonesia adalah pemegang kekuasaan Moneter.', a: true, correctText: 'BENAR. BI adalah bank sentral.' },
+        { type: 'bool', q: 'Mahkamah Agung memegang kekuasaan Konstitutif.', a: false, correctText: 'SALAH. Kekuasaan Konstitutif dipegang oleh MPR.' },
+        { type: 'bool', q: 'DPR memiliki fungsi Legislasi, Anggaran, dan Pengawasan.', a: true, correctText: 'BENAR. Itu adalah 3 fungsi utama DPR.' },
+        { type: 'bool', q: 'Presiden berhak membubarkan DPR jika tidak sepaham.', a: false, correctText: 'SALAH. Presiden tidak dapat membubarkan DPR.' },
+        { type: 'bool', q: 'MPR terdiri dari anggota DPR dan anggota DPD.', a: true, correctText: 'BENAR. Sesuai Pasal 2 Ayat 1 UUD 1945.' },
+        { type: 'bool', q: 'Kekuasaan Yudikatif adalah kekuasaan yang merdeka.', a: true, correctText: 'BENAR. Untuk menyelenggarakan peradilan guna menegakkan hukum.' },
+        { type: 'bool', q: 'Menteri diangkat dan diberhentikan oleh MPR.', a: false, correctText: 'SALAH. Menteri diangkat dan diberhentikan oleh Presiden.' }
+    ],
+    3: [
+        { type: 'mc', q: 'Pasal berapa yang mengatur kekuasaan Presiden?', options: ['Pasal 4 Ayat 1', 'Pasal 20', 'Pasal 24'], correct: 0, correctText: 'Pasal 4 Ayat 1' },
+        { type: 'mc', q: 'Lembaga yang berwenang mengubah UUD diatur dalam Pasal 3 adalah...', options: ['DPR', 'MPR', 'Presiden'], correct: 1, correctText: 'MPR' },
+        { type: 'mc', q: 'Kekuasaan kehakiman dilakukan oleh MA dan MK. Hal ini diatur dalam...', options: ['Pasal 23', 'Pasal 24', 'Pasal 30'], correct: 1, correctText: 'Pasal 24' },
+        { type: 'mc', q: 'Anggota BPK dipilih oleh DPR dengan memperhatikan pertimbangan...', options: ['Presiden', 'DPD', 'MA'], correct: 1, correctText: 'DPD' },
+        { type: 'mc', q: 'Dewan Perwakilan Daerah (DPD) diatur dalam UUD 1945 Pasal...', options: ['22C & 22D', '20A', '18'], correct: 0, correctText: 'Pasal 22C & 22D' },
+        { type: 'mc', q: 'Pasal yang mengatur tentang Pemilihan Umum (Pemilu) adalah...', options: ['Pasal 22E', 'Pasal 18', 'Pasal 28'], correct: 0, correctText: 'Pasal 22E' },
+        { type: 'mc', q: 'Negara Indonesia adalah negara hukum. Hal ini tertuang dalam...', options: ['Pasal 1 Ayat 1', 'Pasal 1 Ayat 2', 'Pasal 1 Ayat 3'], correct: 2, correctText: 'Pasal 1 Ayat 3' },
+        { type: 'mc', q: 'Pasal 20A mengatur tentang hak-hak lembaga...', options: ['Presiden', 'DPR', 'BPK'], correct: 1, correctText: 'DPR' },
+        { type: 'mc', q: 'Presiden dibantu oleh menteri-menteri negara diatur dalam pasal...', options: ['Pasal 17', 'Pasal 5', 'Pasal 10'], correct: 0, correctText: 'Pasal 17' },
+        { type: 'mc', q: 'Hak Asasi Manusia diatur secara khusus dalam Bab XA Pasal...', options: ['27-34', '28A-28J', '30-31'], correct: 1, correctText: 'Pasal 28A - 28J' }
+    ],
+    4: [
+        { type: 'mc', q: 'Tugas: Mengadili pada tingkat kasasi.', options: ['Mahkamah Agung', 'Mahkamah Konstitusi', 'Komisi Yudisial'], correct: 0, correctText: 'Mahkamah Agung' },
+        { type: 'mc', q: 'Tugas: Memutus sengketa hasil pemilihan umum.', options: ['KPU', 'Bawaslu', 'Mahkamah Konstitusi'], correct: 2, correctText: 'Mahkamah Konstitusi' },
+        { type: 'mc', q: 'Tugas: Melantik Presiden dan Wakil Presiden.', options: ['MPR', 'DPR', 'MA'], correct: 0, correctText: 'MPR' },
+        { type: 'mc', q: 'Tugas: Mengawasi pelaksanaan APBN.', options: ['DPR', 'BPK', 'Presiden'], correct: 0, correctText: 'DPR (Fungsi Pengawasan)' },
+        { type: 'mc', q: 'Wewenang: Mengusulkan pengangkatan Hakim Agung.', options: ['Komisi Yudisial', 'DPR', 'Presiden'], correct: 0, correctText: 'Komisi Yudisial (KY)' },
+        { type: 'mc', q: 'Wewenang: Memberikan pertimbangan Grasi dan Rehabilitasi.', options: ['Mahkamah Agung', 'MPR', 'DPR'], correct: 0, correctText: 'Mahkamah Agung' },
+        { type: 'mc', q: 'Tugas: Mengajukan Rancangan Undang-Undang terkait Otonomi Daerah.', options: ['DPD', 'DPRD', 'Gubernur'], correct: 0, correctText: 'DPD (Dewan Perwakilan Daerah)' },
+        { type: 'mc', q: 'Tugas: Menyelenggarakan Pemilihan Umum.', options: ['KPU', 'Bawaslu', 'DKPP'], correct: 0, correctText: 'KPU (Komisi Pemilihan Umum)' },
+        { type: 'mc', q: 'Wewenang: Mengangkat duta dan konsul.', options: ['DPR', 'Presiden', 'Menteri Luar Negeri'], correct: 1, correctText: 'Presiden (dengan pertimbangan DPR)' },
+        { type: 'mc', q: 'Tugas: Mengawasi penyelenggaraan Pemilu.', options: ['KPU', 'Bawaslu', 'Polisi'], correct: 1, correctText: 'Bawaslu (Badan Pengawas Pemilu)' }
+    ],
+    5: [
+        { type: 'mc', q: 'Mengapa kekuasaan kehakiman harus merdeka?', options: ['Agar bisa membuat hukum sendiri', 'Menjamin keadilan tanpa intervensi', 'Agar lebih kuat dari Presiden'], correct: 1, correctText: 'Menjamin keadilan tanpa intervensi kekuasaan lain.' },
+        { type: 'mc', q: 'Jika Presiden melanggar hukum, siapa yang berhak mengusulkan pemberhentian?', options: ['MPR', 'DPR', 'Mahkamah Konstitusi'], correct: 1, correctText: 'DPR (Mengusulkan ke MK, lalu ke MPR)' },
+        { type: 'mc', q: 'Dalam Checks and Balances, Presiden memberi grasi dengan pertimbangan...', options: ['DPR', 'Mahkamah Agung', 'MPR'], correct: 1, correctText: 'Mahkamah Agung' },
+        { type: 'mc', q: 'Manakah contoh fungsi Legislasi DPR?', options: ['Membahas RUU bersama Presiden', 'Mengawasi kinerja Menteri', 'Menyetujui anggaran'], correct: 0, correctText: 'Membahas RUU bersama Presiden' },
+        { type: 'mc', q: 'Apa akibat hukum putusan Mahkamah Konstitusi?', options: ['Dapat dibanding ke MA', 'Final dan mengikat', 'Butuh persetujuan Presiden'], correct: 1, correctText: 'Final dan mengikat (Final and Binding)' },
+        { type: 'mc', q: 'Apa konsekuensi jika RAPBN yang diajukan Presiden ditolak DPR?', options: ['Pemerintah bubar', 'Presiden mundur', 'Menggunakan APBN tahun lalu'], correct: 2, correctText: 'Pemerintah menjalankan APBN tahun lalu.' },
+        { type: 'mc', q: 'Mengapa masa jabatan Presiden dibatasi maksimal 2 periode?', options: ['Agar bergantian', 'Mencegah penyalahgunaan kekuasaan (otoriter)', 'Supaya partai lain menang'], correct: 1, correctText: 'Mencegah otoriterisme dan penyalahgunaan kekuasaan.' },
+        { type: 'mc', q: 'Apa fungsi Hak Angket yang dimiliki oleh DPR?', options: ['Bertanya kepada Presiden', 'Menyelidiki kebijakan pemerintah', 'Menyatakan pendapat'], correct: 1, correctText: 'Menyelidiki kebijakan pemerintah yang diduga melanggar UU.' },
+        { type: 'mc', q: 'Mengapa Indonesia menganut pembagian kekuasaan, bukan pemisahan kekuasaan murni?', options: ['Agar antar lembaga bisa saling kerjasama & mengawasi', 'Agar Presiden memiliki kekuasaan mutlak', 'Karena Indonesia negara kerajaan'], correct: 0, correctText: 'Agar tercipta mekanisme Checks and Balances.' },
+        { type: 'mc', q: 'Jika terjadi sengketa kewenangan antar lembaga negara, siapa yang memutus?', options: ['Mahkamah Agung', 'Presiden', 'Mahkamah Konstitusi'], correct: 2, correctText: 'Mahkamah Konstitusi (MK)' }
+    ]
+};
+
+/**
+ * GAME ENGINE & LOGIC
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game State
+let currentState = 'START';
+let level = 1;
+let score = 0;
+let lives = 5; 
+let correctCount = 0; 
+let globalCorrect = 0; 
+let globalAnswered = 0; 
+let entities = [];
+let particles = [];
+let powerups = []; 
+let projectiles = [];
+let questionQueue = []; 
+let currentQuestion = null;
+let levelEndTriggered = false; 
+
+// Konfigurasi Canvas
+const GAME_WIDTH = 800; 
+const GAME_HEIGHT = 450;
+let cameraX = 0;
+let scale = 1;
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    scale = canvas.height / GAME_HEIGHT;
+    
+    if (canvas.width / scale < 400) {
+        scale = canvas.width / 400;
+    }
+
+    ctx.imageSmoothingEnabled = false; 
+    ctx.setTransform(scale, 0, 0, scale, 0, 0); 
+    
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        document.getElementById('mobile-controls').style.display = 'flex';
+    }
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+
+// Input Handling
+const keys = { right: false, left: false, up: false };
+
+window.addEventListener('keydown', (e) => {
+    if (currentState !== 'PLAYING') return;
+    if (e.code === 'ArrowRight' || e.key === 'd') keys.right = true;
+    if (e.code === 'ArrowLeft' || e.key === 'a') keys.left = true;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === 'w') {
+        if (!keys.up) player.jump();
+        keys.up = true;
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowRight' || e.key === 'd') keys.right = false;
+    if (e.code === 'ArrowLeft' || e.key === 'a') keys.left = false;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === 'w') keys.up = false;
+});
+
+// Mobile Controls Logic
+const touchBtns = document.querySelectorAll('.control-btn');
+
+touchBtns.forEach(btn => {
+    btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        let key = btn.getAttribute('data-key');
+        if (key === 'left') keys.left = true;
+        if (key === 'right') keys.right = true;
+        if (key === 'up') {
+            keys.up = true;
+            if(player) player.jump();
+        }
+        btn.classList.add('active');
+    });
+
+    btn.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        let key = btn.getAttribute('data-key');
+        if (key === 'left') keys.left = false;
+        if (key === 'right') keys.right = false;
+        if (key === 'up') keys.up = false;
+        btn.classList.remove('active');
+    });
+    
+    btn.addEventListener('mouseleave', (e) => {
+        let key = btn.getAttribute('data-key');
+        if (key === 'left') keys.left = false;
+        if (key === 'right') keys.right = false;
+        if (key === 'up') keys.up = false;
+        btn.classList.remove('active');
+    });
+
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        let key = btn.getAttribute('data-key');
+        if (key === 'left') keys.left = true;
+        if (key === 'right') keys.right = true;
+        if (key === 'up') {
+            keys.up = true;
+            if(player) player.jump();
+        }
+        btn.classList.add('active');
+    }, {passive: false});
+
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        let key = btn.getAttribute('data-key');
+        if (key === 'left') keys.left = false;
+        if (key === 'right') keys.right = false;
+        if (key === 'up') keys.up = false;
+        btn.classList.remove('active');
+    });
+});
+
+/** * GRAPHICS HELPERS (3D EFFECTS) */
+function adjustColor(color, amount) {
+    if (typeof color !== 'string') return color;
+    if (color[0] !== '#') return color;
+    
+    let hex = color.slice(1);
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    
+    let num = parseInt(hex, 16);
+    
+    let r = (num >> 16) + amount;
+    if (r > 255) r = 255; else if (r < 0) r = 0;
+    
+    let g = ((num >> 8) & 0x00FF) + amount;
+    if (g > 255) g = 255; else if (g < 0) g = 0;
+    
+    let b = (num & 0x0000FF) + amount;
+    if (b > 255) b = 255; else if (b < 0) b = 0;
+    
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function drawRect3D(ctx, x, y, w, h, color) {
+    let grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, adjustColor(color, 20));
+    grad.addColorStop(1, adjustColor(color, -20));
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x, y, w, 4); 
+    ctx.fillRect(x, y, 4, h); 
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x, y + h - 4, w, 4); 
+    ctx.fillRect(x + w - 4, y, 4, h); 
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+}
+
+function drawSphere3D(ctx, x, y, radius, color) {
+    let grad = ctx.createRadialGradient(x - radius/3, y - radius/3, radius/5, x, y, radius);
+    grad.addColorStop(0, '#fff'); 
+    grad.addColorStop(0.3, color);
+    grad.addColorStop(1, adjustColor(color, -60)); 
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Classes
+class Entity {
+    constructor(x, y, w, h, color) {
+        this.x = x; this.y = y; this.w = w; this.h = h; this.color = color;
+        this.vx = 0; this.vy = 0;
+    }
+    draw() {}
+    update() {}
+}
+
+class Projectile extends Entity {
+    constructor(x, y, vx) {
+        super(x, y, 16, 16, '#e74c3c');
+        this.vx = vx;
+        this.life = 120;
+    }
+    
+    update() {
+        this.x += this.vx;
+        this.life--;
+    }
+    
+    draw() {
+        let screenX = this.x - cameraX;
+        let cx = screenX + this.w/2;
+        let cy = this.y + this.h/2;
+        
+        let grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 10);
+        grad.addColorStop(0, '#ffff00');
+        grad.addColorStop(0.5, '#e67e22');
+        grad.addColorStop(1, 'rgba(231, 76, 60, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12 + Math.random()*4, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
+class Player extends Entity {
+    constructor() {
+        super(100, 200, 30, 30, '#e74c3c');
+        this.speed = 5;
+        this.jumpForce = -11;
+        this.gravity = 0.6;
+        this.grounded = false;
+        this.invincible = false;
+        this.invincibleTimer = 0;
+        this.superMode = false; 
+        this.superTimer = 0;
+        this.facingRight = true;
+    }
+
+    update() {
+        if (keys.right) { this.vx = this.speed; this.facingRight = true; }
+        else if (keys.left) { this.vx = -this.speed; this.facingRight = false; }
+        else { this.vx = 0; }
+
+        this.x += this.vx;
+        this.checkCollisions(true);
+
+        this.vy += this.gravity;
+        this.y += this.vy;
+        this.grounded = false;
+        this.checkCollisions(false);
+
+        if (this.y > GAME_HEIGHT) die();
+
+        let targetCamX = this.x - (canvas.width / scale) / 3;
+        if(targetCamX < 0) targetCamX = 0;
+        cameraX = targetCamX;
+
+        if (this.invincible) {
+            this.invincibleTimer--;
+            if (this.invincibleTimer <= 0) this.invincible = false;
+        }
+
+        if (this.superMode) {
+            this.superTimer--;
+            if (this.superTimer <= 0) {
+                this.deactivateSuper();
+            }
+        }
+    }
+
+    activateSuper() {
+        if (!this.superMode) {
+            this.superMode = true;
+            this.superTimer = 900; 
+            document.getElementById('power-indicator').style.display = 'block';
+            showFeedback("SUPER PAK ANGGI!", this.x, this.y - 50);
+            
+            this.y -= 20; 
+            this.h = 50; 
+        } else {
+            this.superTimer = 900;
+        }
+    }
+
+    deactivateSuper() {
+        this.superMode = false;
+        this.h = 30; 
+        document.getElementById('power-indicator').style.display = 'none';
+        showFeedback("Kekuatan Habis...", this.x, this.y - 50);
+    }
+
+    jump() {
+        if (this.grounded) {
+            this.vy = this.jumpForce;
+            this.grounded = false;
+        }
+    }
+
+    draw() {
+        if (this.invincible && Math.floor(Date.now() / 100) % 2 === 0) return;
+        
+        let screenX = this.x - cameraX;
+        let centerX = screenX + this.w/2;
+        
+        let shirtColor = '#3498db';
+        let hatColor = '#c0392b';
+        let skinColor = '#f1c40f';
+        let bodyH = this.superMode ? 24 : 14;
+        let headSize = this.superMode ? 14 : 10;
+        let limbW = 6;
+        let limbH = this.superMode ? 12 : 8;
+        
+        if (this.superMode) {
+            let colors = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6'];
+            let cIndex = Math.floor(Date.now() / 100) % colors.length;
+            shirtColor = colors[cIndex];
+            hatColor = colors[(cIndex + 2) % colors.length];
+            
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = shirtColor;
+            ctx.beginPath();
+            ctx.arc(centerX, this.y + this.h/2, 35, 0, Math.PI*2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
+        let walkCycle = 0;
+        if(this.vx !== 0) {
+            walkCycle = Math.sin(Date.now() / 100) * 0.5;
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(centerX, this.y + this.h, 10, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = hatColor; 
+        ctx.save();
+        ctx.translate(centerX, this.y + this.h - bodyH - (headSize/2));
+        ctx.rotate(-walkCycle); 
+        ctx.fillRect(-limbW/2, 0, limbW, limbH);
+        ctx.restore();
+
+        ctx.fillStyle = shirtColor; 
+        ctx.save();
+        ctx.translate(centerX - 4, this.y + this.h - 6);
+        ctx.rotate(walkCycle);
+        ctx.fillRect(-limbW/2, 0, limbW, limbH);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(centerX + 4, this.y + this.h - 6);
+        ctx.rotate(-walkCycle);
+        ctx.fillRect(-limbW/2, 0, limbW, limbH);
+        ctx.restore();
+
+        drawRect3D(ctx, screenX + 6, this.y + this.h - bodyH - 4, 18, bodyH, shirtColor);
+        
+        drawSphere3D(ctx, centerX, this.y + headSize, headSize, skinColor);
+        
+        ctx.fillStyle = hatColor;
+        ctx.beginPath();
+        ctx.arc(centerX, this.y + headSize - 2, headSize + 1, Math.PI, 0); 
+        ctx.fill();
+        ctx.fillRect(this.facingRight ? centerX : centerX - 12, this.y + headSize - 3, 12, 3);
+
+        ctx.fillStyle = 'black';
+        let eyeOffset = this.facingRight ? 4 : -4;
+        ctx.fillRect(centerX + eyeOffset, this.y + headSize - 2, 3, 3);
+    }
+
+    checkCollisions(horizontal) {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+            let b = blocks[i];
+            if (rectIntersect(this.x, this.y, this.w, this.h, b.x, b.y, b.w, b.h)) {
+                if (horizontal) {
+                    if (this.vx > 0) this.x = b.x - this.w;
+                    else if (this.vx < 0) this.x = b.x + b.w;
+                    this.vx = 0;
+                } else {
+                    if (this.vy > 0) {
+                        this.y = b.y - this.h;
+                        this.vy = 0;
+                        this.grounded = true;
+                    } else if (this.vy < 0) {
+                        this.y = b.y + b.h;
+                        this.vy = 0;
+                        
+                        if (this.superMode && b.type === 'brick') {
+                            b.break();
+                            blocks.splice(i, 1); 
+                        } else {
+                            b.hit();
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!horizontal && this.vy >= 0) {
+            for (let p of movingPlatforms) {
+                if (this.x + this.w > p.x && this.x < p.x + p.w &&
+                    this.y + this.h <= p.y + p.h && this.y + this.h + this.vy >= p.y) {
+                    this.y = p.y - this.h;
+                    this.vy = 0;
+                    this.grounded = true;
+                    this.x += p.vx; 
+                }
+            }
+        }
+    }
+}
+
+class PowerMushroom extends Entity {
+    constructor(x, y) {
+        super(x, y, 32, 32, '#2ecc71');
+        this.vx = 2; 
+        this.grounded = false;
+        this.active = true;
+    }
+
+    update() {
+        if(!this.active) return;
+        this.vy += 0.5;
+        this.y += this.vy;
+        this.x += this.vx;
+
+        for (let b of blocks) {
+            if (rectIntersect(this.x, this.y, this.w, this.h, b.x, b.y, b.w, b.h)) {
+                if (this.y + this.h - this.vy <= b.y) {
+                    this.y = b.y - this.h;
+                    this.vy = 0;
+                    this.grounded = true;
+                } else if (this.x + this.w - this.vx <= b.x || this.x - this.vx >= b.x + b.w) {
+                    this.vx *= -1;
+                }
+            }
+        }
+    }
+
+    draw() {
+        if(!this.active) return;
+        let screenX = this.x - cameraX;
+        let cx = screenX + this.w/2;
+        let cy = this.y + this.h/2;
+
+        drawSphere3D(ctx, cx, cy - 5, 16, '#2ecc71');
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(cx - 8, cy - 8, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 8, cy - 8, 4, 0, Math.PI*2); ctx.fill();
+        drawRect3D(ctx, cx - 8, cy, 16, 16, '#f1c40f');
+        ctx.fillStyle = 'black';
+        ctx.fillRect(cx - 4, cy + 4, 3, 6);
+        ctx.fillRect(cx + 2, cy + 4, 3, 6);
+    }
+}
+
+class Block extends Entity {
+    constructor(x, y, type) {
+        super(x, y, 40, 40, '#CD853F');
+        this.type = type; 
+        this.active = true;
+        this.bumpY = 0;
+        this.initialY = y;
+    }
+
+    draw() {
+        let drawY = this.y + this.bumpY;
+        let screenX = this.x - cameraX;
+
+        if (this.type === 'ground') {
+            drawRect3D(ctx, screenX, drawY, this.w, this.h, currentTheme.dirt);
+            ctx.fillStyle = currentTheme.ground;
+            ctx.fillRect(screenX, drawY, this.w, 10);
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(screenX, drawY, this.w, 3);
+        } else if (this.type === 'brick' || (this.type === 'empty' && !this.active)) {
+            let color = this.type === 'empty' ? '#7f8c8d' : currentTheme.brick;
+            drawRect3D(ctx, screenX, drawY, this.w, this.h, color);
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(screenX + 5, drawY + 18, this.w - 10, 4);
+            ctx.fillRect(screenX + 18, drawY, 4, 18);
+            ctx.fillRect(screenX + 10, drawY + 22, 4, 18);
+        } else if (this.type === 'question' || this.type === 'bonus' || this.type === 'power_box' || this.type === 'life') {
+            if (this.active) {
+                let color;
+                let symbol;
+                
+                if (this.type === 'power_box') { color = '#3498db'; symbol = 'S'; }
+                else if (this.type === 'life') { color = '#e91e63'; symbol = '❤'; } 
+                else { color = '#f1c40f'; symbol = '?'; }
+
+                drawRect3D(ctx, screenX, drawY, this.w, this.h, color);
+                
+                ctx.fillStyle = (this.type === 'life') ? '#fff' : '#d35400';
+                ctx.font = 'bold 24px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(symbol, screenX + this.w/2, drawY + this.h/2 + 2);
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(screenX + 4, drawY + 4, 4, 4);
+                ctx.fillRect(screenX + this.w - 8, drawY + 4, 4, 4);
+                ctx.fillRect(screenX + 4, drawY + this.h - 8, 4, 4);
+                ctx.fillRect(screenX + this.w - 8, drawY + this.h - 8, 4, 4);
+            } else {
+                drawRect3D(ctx, screenX, drawY, this.w, this.h, '#7f8c8d'); 
+            }
+        } else if (this.type === 'empty') {
+            drawRect3D(ctx, screenX, drawY, this.w, this.h, currentTheme.brick);
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(screenX + 5, drawY + 18, this.w - 10, 4);
+        }
+
+        if (this.bumpY < 0) this.bumpY += 2;
+    }
+
+    hit() {
+        if (this.bumpY === 0) {
+            this.bumpY = -15; 
+            
+            if (this.type === 'empty') {
+                createParticles(this.x + this.w/2, this.y + this.h/2, currentTheme.brick);
+            } else if (this.type === 'bonus' && this.active) {
+                this.active = false;
+                score += 50;
+                showFeedback("+50 BONUS!", this.x, this.y);
+                updateHUD();
+            } else if (this.type === 'question' && this.active) {
+                this.active = false;
+                triggerQuestion();
+            } else if (this.type === 'power_box' && this.active) {
+                this.active = false;
+                powerups.push(new PowerMushroom(this.x, this.y - 40));
+                createParticles(this.x + this.w/2, this.y, '#2ecc71');
+                showFeedback("KEJAR JAMURNYA!", this.x, this.y - 40);
+            } else if (this.type === 'life' && this.active) { 
+                this.active = false;
+                lives++;
+                createParticles(this.x + this.w/2, this.y, '#e91e63');
+                showFeedback("1 UP! ❤️", this.x, this.y - 40);
+                updateHUD();
+            }
+        }
+    }
+
+    break() {
+        createParticles(this.x + this.w/2, this.y + this.h/2, currentTheme.brick);
+        showFeedback("HANCUR!", this.x, this.y);
+    }
+}
+
+class Enemy extends Entity {
+    constructor(x, y) {
+        super(x, y, 36, 36, '#8e44ad');
+        this.vx = -1.5;
+        this.patrolStart = x - 150;
+        this.patrolEnd = x + 150;
+        this.angle = 0;
+        this.isShooter = false;
+    }
+
+    update() {
+        this.x += this.vx;
+        if (this.x < this.patrolStart) this.vx = Math.abs(this.vx);
+        if (this.x > this.patrolEnd) this.vx = -Math.abs(this.vx);
+
+        this.y += this.vy;
+        this.vy += 0.5;
+
+        for (let b of blocks) {
+            if (rectIntersect(this.x, this.y, this.w, this.h, b.x, b.y, b.w, b.h)) {
+                 if (this.vy > 0 && this.y + this.h - this.vy <= b.y + 10) { 
+                    this.y = b.y - this.h;
+                    this.vy = 0;
+                } else {
+                    if (this.vx < 0 && this.x < b.x + b.w && this.x + this.w > b.x + b.w) {
+                        this.x = b.x + b.w;
+                        this.vx = Math.abs(this.vx); 
+                    } else if (this.vx > 0 && this.x + this.w > b.x && this.x < b.x) {
+                        this.x = b.x - this.w;
+                        this.vx = -Math.abs(this.vx); 
+                    }
+                }
+            }
+        }
+        this.angle += 0.1;
+    }
+
+    draw() {
+        let screenX = this.x - cameraX;
+        let cx = screenX + this.w/2;
+        let cy = this.y + this.h/2;
+        let bob = Math.sin(this.angle) * 3;
+        let capColor = this.isShooter ? '#c0392b' : '#8e44ad';
+
+        drawSphere3D(ctx, cx, cy - 5 + bob, 18, capColor);
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(cx - 10, cy - 10 + bob, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 10, cy - 8 + bob, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy - 15 + bob, 4, 0, Math.PI*2); ctx.fill();
+        drawRect3D(ctx, cx - 10, cy + bob, 20, 18, '#f1c40f');
+        ctx.fillStyle = 'black';
+        ctx.fillRect(cx - 6, cy + 4 + bob, 4, 4);
+        ctx.fillRect(cx + 4, cy + 4 + bob, 4, 4);
+    }
+}
+
+class ShooterEnemy extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.isShooter = true;
+        this.shootTimer = 0;
+        this.patrolStart = x - 50; 
+        this.patrolEnd = x + 50;
+    }
+
+    update() {
+        super.update();
+        this.shootTimer++;
+        if(this.shootTimer > 200) { 
+            let dir = this.vx > 0 ? 1 : -1;
+            if(Math.abs(player.x - this.x) < 400) {
+                 dir = player.x > this.x ? 1 : -1;
+                 projectiles.push(new Projectile(this.x + this.w/2, this.y, dir * 4));
+                 this.shootTimer = 0;
+            }
+        }
+    }
+}
+
+class FlyingEnemy extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.startY = y;
+        this.time = 0;
+    }
+    update() {
+        this.x += this.vx;
+        if (this.x < this.patrolStart) this.vx = Math.abs(this.vx);
+        if (this.x > this.patrolEnd) this.vx = -Math.abs(this.vx);
+        
+        this.time += 0.05;
+        this.y = this.startY + Math.sin(this.time) * 40;
+    }
+    draw() {
+        let screenX = this.x - cameraX;
+        let cx = screenX + this.w/2;
+        let cy = this.y + this.h/2;
+        
+        ctx.fillStyle = '#ecf0f1';
+        let wingFlap = Math.sin(Date.now() / 50) * 5;
+        ctx.beginPath();
+        ctx.ellipse(cx - 15, cy - 5 + wingFlap, 10, 5, 0.5, 0, Math.PI*2);
+        ctx.ellipse(cx + 15, cy - 5 + wingFlap, 10, 5, -0.5, 0, Math.PI*2);
+        ctx.fill();
+
+        super.draw();
+    }
+}
+
+class SpikyEnemy extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+    }
+    draw() {
+        let screenX = this.x - cameraX;
+        let cx = screenX + this.w/2;
+        let cy = this.y + this.h/2;
+        let bob = Math.sin(this.angle) * 3;
+
+        drawSphere3D(ctx, cx, cy - 5 + bob, 18, '#2c3e50');
+        
+        ctx.fillStyle = '#bdc3c7';
+        for(let i=-2; i<=2; i++) {
+            ctx.beginPath();
+            ctx.moveTo(cx + (i*6), cy - 20 + bob);
+            ctx.lineTo(cx + (i*6) - 3, cy - 30 + bob);
+            ctx.lineTo(cx + (i*6) + 3, cy - 30 + bob);
+            ctx.fill();
+        }
+
+        drawRect3D(ctx, cx - 10, cy + bob, 20, 18, '#f1c40f');
+        ctx.fillStyle = 'black';
+        ctx.fillRect(cx - 6, cy + 4 + bob, 4, 4);
+        ctx.fillRect(cx + 4, cy + 4 + bob, 4, 4);
+    }
+}
+
+class Mine extends Entity {
+    constructor(x, y) {
+        super(x, y + 20, 32, 20, '#000');
+    }
+    draw() {
+        let screenX = this.x - cameraX;
+        let cx = screenX + this.w/2;
+        let cy = this.y + this.h/2;
+        drawSphere3D(ctx, cx, cy, 12, '#2c3e50');
+        ctx.fillStyle = '#bdc3c7';
+        for(let i=0; i<4; i++) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate((Date.now() / 500) + (i * Math.PI / 2));
+            ctx.beginPath();
+            ctx.moveTo(0, -12);
+            ctx.lineTo(4, -20);
+            ctx.lineTo(-4, -20);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+}
+
+class MovingPlatform extends Entity {
+    constructor(x, topY, bottomY) {
+        super(x, bottomY, 80, 20, '#34495e'); 
+        this.topY = topY;       
+        this.bottomY = bottomY; 
+        this.vy = -1.5;         
+        this.vx = 0;            
+        this.waitTimer = 0;     
+    }
+
+    update() {
+        if(this.waitTimer > 0) {
+            this.waitTimer--;
+            return;
+        }
+        
+        this.y += this.vy;
+        
+        if (this.y < this.topY) {
+            this.y = this.topY;
+            this.vy = 2; 
+            this.waitTimer = 90; 
+        }
+        
+        if (this.y > this.bottomY) {
+            this.y = this.bottomY;
+            this.vy = -1.5; 
+            this.waitTimer = 30; 
+        }
+    }
+
+    draw() {
+        let screenX = this.x - cameraX;
+        
+        let gradientPole = ctx.createLinearGradient(screenX + 30, 0, screenX + 50, 0);
+        gradientPole.addColorStop(0, '#7f8c8d');
+        gradientPole.addColorStop(0.5, '#bdc3c7');
+        gradientPole.addColorStop(1, '#7f8c8d');
+        
+        ctx.fillStyle = gradientPole;
+        ctx.fillRect(screenX + 30, this.y + 20, 20, GAME_HEIGHT - this.y + 100); 
+
+        drawRect3D(ctx, screenX, this.y, this.w, this.h, '#95a5a6');
+        
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath(); ctx.arc(screenX + 10, this.y + 10, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(screenX + this.w - 10, this.y + 10, 4, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(screenX + 20, this.y + 5, 40, 10);
+    }
+}
+
+class FlagPole extends Entity {
+    constructor(x, y) {
+        super(x, y, 10, 320, '#fff');
+        this.flagY = y - 60; 
+        this.targetFlagY = y - 60; 
+        this.maxFlagY = y - 340; 
+        this.reachedTop = false;
+        this.waveOffset = 0;
+    }
+    
+    raiseFlag() {
+        let ratio = Math.min(correctCount / 10, 1); 
+        if(ratio === 0 && correctCount > 0) ratio = 0.2; 
+        if(correctCount === 0) ratio = 0.1;
+        
+        let range = this.flagY - this.maxFlagY;
+        this.targetFlagY = this.flagY - (range * ratio);
+    }
+    
+    update() {
+        this.waveOffset += 0.1;
+        if (currentState === 'FLAG_ANIMATION') {
+            if (this.flagY > this.targetFlagY) {
+                this.flagY -= 2; 
+            } else {
+                this.reachedTop = true;
+            }
+        }
+    }
+
+    draw() {
+        let screenX = this.x - cameraX;
+        
+        let gradPole = ctx.createLinearGradient(screenX, 0, screenX + 12, 0);
+        gradPole.addColorStop(0, '#95a5a6');
+        gradPole.addColorStop(0.4, '#ecf0f1');
+        gradPole.addColorStop(1, '#7f8c8d');
+        
+        ctx.fillStyle = gradPole;
+        ctx.fillRect(screenX, this.y - 350, 12, 400); 
+        
+        drawSphere3D(ctx, screenX + 6, this.y - 350, 10, '#f1c40f');
+        drawRect3D(ctx, screenX - 24, this.y + 40, 60, 40, '#27ae60');
+        
+        let ropeX = screenX + 16;
+        ctx.strokeStyle = '#bdc3c7'; 
+        ctx.lineWidth = 1.5;
+        
+        ctx.beginPath();
+        ctx.moveTo(ropeX, this.y - 345);
+        ctx.lineTo(ropeX, this.y + 30);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#34495e';
+        ctx.beginPath();
+        ctx.arc(ropeX, this.y - 345, 2, 0, Math.PI*2);
+        ctx.arc(ropeX, this.y + 30, 2, 0, Math.PI*2);
+        ctx.fill();
+
+        let flagW = 80;
+        let flagH = 50; 
+        let segmentW = 2; 
+        
+        for (let i = 0; i < flagW; i += segmentW) {
+            let wave = Math.sin(this.waveOffset + i * 0.1) * (i * 0.15);
+            let light = Math.cos(this.waveOffset + i * 0.1);
+            
+            let sliceX = ropeX + i;
+            let sliceY = this.flagY + wave;
+            
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(sliceX, sliceY, segmentW + 0.5, flagH / 2);
+            
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillRect(sliceX, sliceY + (flagH / 2), segmentW + 0.5, flagH / 2);
+            
+            if (light < 0) {
+                ctx.fillStyle = `rgba(0,0,0,${-light * 0.2})`; 
+            } else {
+                ctx.fillStyle = `rgba(255,255,255,${light * 0.2})`; 
+            }
+            ctx.fillRect(sliceX, sliceY, segmentW + 0.5, flagH);
+        }
+    }
+}
+
+// Global Entities
+let player;
+let blocks = [];
+let enemies = [];
+let mines = [];
+let movingPlatforms = [];
+let flagPole;
+
+// Helpers
+function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return x2 < x1 + w1 && x2 + w2 > x1 && y2 < y1 + h1 && y2 + h2 > y1;
+}
+
+function createParticles(x, y, color) {
+    for(let i=0; i<8; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 40,
+            color: color,
+            size: Math.random() * 6 + 2
+        });
+    }
+}
+
+function showFeedback(text, x, y) {
+    const el = document.getElementById('feedback-msg');
+    el.innerText = text;
+    el.style.display = 'block';
+    el.style.animation = 'none';
+    el.offsetHeight; 
+    el.style.animation = null; 
+    setTimeout(() => { el.style.display = 'none'; }, 1000);
+}
+
+// Helper: Build Stairs
+function createStairs(startX, startY, height, isUpward) {
+    let blockW = 40;
+    for (let h = 0; h < height; h++) {
+        for (let i = 0; i <= h; i++) {
+            let xPos = (startX + h) * blockW;
+            let yPos = startY - (i * blockW);
+            blocks.push(new Block(xPos, yPos, 'brick'));
+        }
+    }
+}
+
+function drawBackground() {
+    if (bgImage.complete && bgImage.naturalWidth !== 0) {
+        let pX = cameraX * 0.2; 
+        
+        let imgRatio = bgImage.width / bgImage.height;
+        let drawHeight = canvas.height;
+        // Use Math.ceil to ensure no gaps
+        let drawWidth = Math.ceil(drawHeight * imgRatio); 
+        
+        let startX = -(pX % drawWidth);
+        
+        // Draw with overlap to prevent seams
+        ctx.drawImage(bgImage, startX, 0, drawWidth + 1, drawHeight);
+        
+        if (startX + drawWidth < canvas.width) {
+            ctx.drawImage(bgImage, startX + drawWidth, 0, drawWidth + 1, drawHeight);
+        }
+        
+        if (startX + (drawWidth * 2) < canvas.width) {
+            ctx.drawImage(bgImage, startX + (drawWidth * 2), 0, drawWidth + 1, drawHeight);
+        }
+        
+    } else {
+        let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, currentTheme.sky[0]);
+        grad.addColorStop(1, currentTheme.sky[1]);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        let pX = cameraX * 0.2;
+
+        if (currentTheme.decor === 'clouds') {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for(let i=0; i<5; i++) {
+                let x = ((i * 200) - pX) % (canvas.width + 200);
+                if(x < -100) x += canvas.width + 200;
+                ctx.beginPath();
+                ctx.arc(x, 80 + (i%2)*30, 40, 0, Math.PI*2);
+                ctx.arc(x+30, 80 + (i%2)*30, 50, 0, Math.PI*2);
+                ctx.arc(x+60, 80 + (i%2)*30, 40, 0, Math.PI*2);
+                ctx.fill();
+            }
+        } else if (currentTheme.decor === 'pyramids') {
+            ctx.fillStyle = '#E59866'; 
+            for(let i=0; i<3; i++) {
+                let x = ((i * 300) - pX) % (canvas.width + 400);
+                if(x < -200) x += canvas.width + 400;
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - 40);
+                ctx.lineTo(x + 150, canvas.height - 250);
+                ctx.lineTo(x + 300, canvas.height - 40);
+                ctx.fill();
+            }
+        } else if (currentTheme.decor === 'trees') {
+            ctx.fillStyle = '#2E7D32'; 
+            for(let i=0; i<6; i++) {
+                let x = ((i * 150) - pX) % (canvas.width + 100);
+                if(x < -50) x += canvas.width + 100;
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - 40);
+                ctx.lineTo(x + 30, canvas.height - 150);
+                ctx.lineTo(x + 60, canvas.height - 40);
+                ctx.fill();
+            }
+        } else if (currentTheme.decor === 'stars') {
+            ctx.fillStyle = 'white';
+            for(let i=0; i<50; i++) {
+                let x = (i * 37 * 11) % canvas.width;
+                let y = (i * 23 * 7) % (canvas.height/2);
+                ctx.beginPath();
+                ctx.arc(x, y, Math.random() * 2, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.fillStyle = '#F4F6F7';
+            ctx.beginPath();
+            ctx.arc(canvas.width - 100, 80, 40, 0, Math.PI*2);
+            ctx.fill();
+        } else if (currentTheme.decor === 'pillars') {
+            ctx.fillStyle = '#546E7A';
+            for(let i=0; i<5; i++) {
+                let x = ((i * 250) - pX) % (canvas.width + 100);
+                if(x < -100) x += canvas.width + 100;
+                ctx.fillRect(x, 100, 40, canvas.height);
+            }
+        }
+
+        ctx.restore();
+    }
+}
+
+// Level Generation
+function generateLevel(lvlNum) {
+    blocks = []; enemies = []; mines = []; movingPlatforms = []; particles = []; powerups = []; projectiles = [];
+    cameraX = 0;
+    correctCount = 0; 
+    levelEndTriggered = false;
+    
+    currentTheme = themes[lvlNum] || themes[1];
+
+    questionQueue = [...questionsData[lvlNum]]; 
+
+    let blockW = 40; 
+    let length = 160; 
+
+    // --- KONFIGURASI PETA LEVEL ---
+    
+    // 1. Tentukan Lokasi Jurang (Pits) yang Pasti
+    // Pola: Index awal jurang (lebar 3 blok)
+    let pitStarts = [];
+    if (lvlNum <= 2) {
+        pitStarts = [20, 55, 90, 125]; 
+    } else if (lvlNum <= 4) {
+        pitStarts = [15, 40, 65, 90, 115]; 
+    } else {
+        pitStarts = [12, 32, 52, 72, 92, 112, 132]; 
+    }
+
+    // 2. Tentukan Area Aman untuk Struktur (Tangga & Piramida)
+    let stairsX = 28; 
+    let pyramidX = 60; 
+
+    // 3. Tentukan Lokasi Kotak (13 Item: 10 Soal + 3 Bonus)
+    // Cari lokasi yang tidak tabrakan dengan jurang atau struktur
+    let specialLocs = [];
+    let candidateX = 6;
+    
+    while (specialLocs.length < 13) {
+        let isSafe = true;
+        
+        // Cek jurang (beri jarak 2 blok)
+        for (let pit of pitStarts) {
+            if (candidateX >= pit - 2 && candidateX <= pit + 5) isSafe = false;
+        }
+        
+        // Cek Tangga (lebar ~6)
+        if (candidateX >= stairsX - 2 && candidateX <= stairsX + 8) isSafe = false;
+        
+        // Cek Piramida (lebar ~10)
+        if (candidateX >= pyramidX - 2 && candidateX <= pyramidX + 12) isSafe = false;
+
+        if (isSafe) {
+            specialLocs.push(candidateX);
+            candidateX += 4; // Jarak antar kotak minimal 4 blok
+        } else {
+            candidateX++;
+        }
+        
+        if (candidateX > length - 10) break; // Safety break
+    }
+
+    // Tipe Kotak (Total 13)
+    let types = [
+        'question', 'question', 'question', 'question', 'question', 
+        'question', 'question', 'question', 'question', 'question',
+        'bonus', 'power_box', 'life'
+    ];
+    types.sort(() => Math.random() - 0.5);
+
+    // --- GENERATE BLOK & ENTITAS ---
+
+    // 1. Buat Tanah & Jurang
+    for (let i = 0; i < length; i++) {
+        // Cek apakah index 'i' adalah bagian dari jurang
+        let isPitBlock = false;
+        let currentPitStart = -1;
+
+        for (let pit of pitStarts) {
+            if (i >= pit && i < pit + 3) { // Jurang lebar 3 blok
+                isPitBlock = true;
+                currentPitStart = pit;
+                break;
+            }
+        }
+
+        if (isPitBlock) {
+            // Jika ini adalah blok tengah jurang (pit + 1), buat Platform
+            if (i === currentPitStart + 1) {
+                // Platform Presisi di tengah jurang (pit*blockW + 20)
+                let platformX = (currentPitStart * blockW) + 20;
+                movingPlatforms.push(new MovingPlatform(platformX, GAME_HEIGHT - blockW, GAME_HEIGHT + 60));
+            }
+            continue;
+        }
+
+        // Jika bukan jurang, buat tanah
+        blocks.push(new Block(i * blockW, GAME_HEIGHT - blockW, 'ground'));
+
+        // Spawn Musuh di Tanah (Area Aman)
+        let isUnderBox = specialLocs.includes(i);
+        let inStructure = (i >= stairsX && i <= stairsX + 8) || (i >= pyramidX && i <= pyramidX + 12);
+        
+        if (i > 10 && i < length - 15 && !isUnderBox && !inStructure) {
+            if (Math.random() > 0.90) {
+                let ex = i * blockW;
+                let ey = GAME_HEIGHT - 80;
+                let rand = Math.random();
+                
+                if(rand < 0.3) enemies.push(new ShooterEnemy(ex, ey));
+                else if (rand < 0.5) enemies.push(new FlyingEnemy(ex, ey - 60));
+                else if (rand < 0.7) enemies.push(new SpikyEnemy(ex, ey));
+                else enemies.push(new Enemy(ex, ey));
+            }
+        }
+    }
+
+    // 2. Dinding Pembatas
+    for(let i=0; i<15; i++) {
+        blocks.push(new Block(-blockW, GAME_HEIGHT - blockW - (i*blockW), 'brick'));
+        blocks.push(new Block(length*blockW, GAME_HEIGHT - blockW - (i*blockW), 'brick'));
+    }
+
+    // 3. Struktur Bangunan
+    // Tangga
+    createStairs(stairsX, GAME_HEIGHT - blockW*2, 4, true);
+    
+    // Piramida
+    for(let h=0; h<4; h++) {
+        blocks.push(new Block((pyramidX+h)*blockW, GAME_HEIGHT - (2+h)*blockW, 'brick'));
+        blocks.push(new Block((pyramidX+7-h)*blockW, GAME_HEIGHT - (2+h)*blockW, 'brick'));
+        for(let w=0; w < (pyramidX+7-h) - (pyramidX+h) - 1; w++) {
+             blocks.push(new Block((pyramidX+h+1+w)*blockW, GAME_HEIGHT - (2+h)*blockW, 'brick'));
+        }
+    }
+
+    // 4. Spawn Kotak Spesial
+    specialLocs.forEach((locIndex, i) => {
+        let type = types[i % types.length];
+        
+        let x = locIndex * blockW;
+        let y = GAME_HEIGHT - 160; 
+
+        if (Math.random() > 0.5) {
+            blocks.push(new Block(x - blockW, y, 'brick'));
+            blocks.push(new Block(x, y, type));
+            blocks.push(new Block(x + blockW, y, 'brick'));
+        } else {
+             blocks.push(new Block(x, y, type));
+        }
+        
+        if (Math.random() > 0.75) mines.push(new Mine((locIndex + 2) * blockW, GAME_HEIGHT - 60));
+    });
+
+    player = new Player();
+    flagPole = new FlagPole((length - 4) * blockW, GAME_HEIGHT - blockW);
+
+    // Update Button Text Logic
+    let nextBtn = document.getElementById('next-level-btn');
+    if (lvlNum === 5) {
+        nextBtn.innerText = "CEK HASIL ▶";
+    } else {
+        nextBtn.innerText = "LEVEL SELANJUTNYA ▶";
+    }
+}
+
+// Game Loop
+function startGame() {
+    resize();
+    document.getElementById('start-screen').style.display = 'none';
+    
+    // Play Background Music
+    const bgm = document.getElementById('bgm');
+    const sfxWin = document.getElementById('sfx-win');
+    
+    // Reset Audio
+    sfxWin.pause();
+    sfxWin.currentTime = 0;
+    
+    bgm.volume = 0.5; 
+    
+    // Check mute state before playing
+    if (!isMuted) {
+        bgm.play().catch(e => console.log("Audio play failed:", e));
+    }
+
+    score = 0;
+    lives = 5; 
+    level = 1;
+    globalCorrect = 0;
+    globalAnswered = 0;
+    updateHUD();
+    startLevel(level);
+}
+
+function startLevel(lvl) {
+    currentState = 'PLAYING';
+    generateLevel(lvl);
+    loop();
+}
+
+function updateHUD() {
+    document.getElementById('score').innerText = score;
+    document.getElementById('level').innerText = level;
+    document.getElementById('lives').innerText = lives;
+}
+
+function die() {
+    if(player.invincible) return;
+    
+    lives--;
+    player.deactivateSuper(); 
+    updateHUD();
+    if (lives > 0) {
+        player.invincible = true;
+        player.invincibleTimer = 120;
+        
+        if(player.y > GAME_HEIGHT) {
+            player.x = cameraX + 100; 
+            player.y = 200;
+            player.vx = 0;
+            player.vy = 0;
+            showFeedback("HATI-HATI!", (canvas.width / scale) / 2, GAME_HEIGHT/2);
+        } else {
+             showFeedback("OUCH!", player.x, player.y - 50);
+        }
+
+    } else {
+        currentState = 'GAME_OVER';
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('game-over-screen').style.display = 'flex';
+    }
+}
+
+function nextLevel() {
+    level++;
+    
+    // Stop Win Music & Resume BGM
+    const bgm = document.getElementById('bgm');
+    const sfxWin = document.getElementById('sfx-win');
+    
+    sfxWin.pause();
+    sfxWin.currentTime = 0;
+    
+    if (level > 5) {
+        // END GAME LOGIC
+        // Hitung persentase jawaban benar
+        let percentage = 0;
+        if(globalAnswered > 0) {
+            percentage = Math.round((globalCorrect / globalAnswered) * 100);
+        }
+
+        document.getElementById('level-complete-screen').style.display = 'none';
+        
+        if (percentage > 70) {
+            currentState = 'WIN';
+            // Play Win Music again for Victory Screen if not muted
+            if(!isMuted) sfxWin.play(); 
+            document.getElementById('win-score').innerText = score;
+            document.getElementById('win-accuracy').innerText = percentage;
+            document.getElementById('victory-screen').style.display = 'flex';
+        } else {
+            currentState = 'LOSE';
+            bgm.pause();
+            document.getElementById('lose-accuracy').innerText = percentage;
+            document.getElementById('bad-ending-screen').style.display = 'flex';
+        }
+        return;
+    }
+    
+    // Resume BGM for next level if not muted
+    if(!isMuted) {
+        bgm.play().catch(e => console.log("BGM Resume failed", e));
+    }
+    
+    document.getElementById('level-complete-screen').style.display = 'none';
+    startLevel(level);
+}
+
+function loop() {
+    if (currentState !== 'PLAYING' && currentState !== 'FLAG_ANIMATION') return;
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw Dynamic Background
+    drawBackground();
+    
+    ctx.restore();
+
+    if (currentState === 'PLAYING') {
+        player.update();
+        enemies.forEach(e => e.update());
+        movingPlatforms.forEach(p => p.update());
+        powerups.forEach(p => p.update());
+        projectiles.forEach((p, i) => {
+            p.update();
+            if(p.life <= 0) projectiles.splice(i, 1);
+            else if(rectIntersect(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) {
+                 if(player.superMode) {
+                     projectiles.splice(i, 1);
+                     showFeedback("DITANGKIS!", player.x, player.y - 30);
+                 } else {
+                     projectiles.splice(i, 1);
+                     die();
+                 }
+            }
+        });
+        
+        powerups.forEach((p, idx) => {
+            if(p.active && rectIntersect(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) {
+                p.active = false;
+                player.activateSuper();
+                powerups.splice(idx, 1);
+            }
+        });
+
+        enemies.forEach(e => {
+            if (rectIntersect(player.x, player.y, player.w, player.h, e.x, e.y, e.w, e.h)) {
+                if (player.superMode) {
+                    e.y = 2000;
+                    score += 50;
+                    updateHUD();
+                    createParticles(e.x + e.w/2, e.y, '#8e44ad');
+                    showFeedback("TABRAK!", e.x, e.y - 40);
+                }
+                // Jika Spiky Enemy dan melompat, tetap kena damage kecuali super
+                else if (e instanceof SpikyEnemy && player.vy > 0) {
+                    player.vy = -5;
+                    die();
+                }
+                else if (player.vy > 0 && player.y + player.h < e.y + e.h / 1.5) {
+                    e.y = 2000; 
+                    player.vy = -6; 
+                    score += 20;
+                    updateHUD();
+                    createParticles(e.x + e.w/2, e.y, '#8e44ad');
+                } else {
+                    die();
+                }
+            }
+        });
+
+        mines.forEach(m => {
+            if (rectIntersect(player.x, player.y, player.w, player.h, m.x, m.y + 10, m.w, m.h)) {
+                if (player.superMode) {
+                    m.y = 2000; 
+                    createParticles(m.x, m.y, '#333');
+                } else {
+                    die();
+                }
+            }
+        });
+
+        if (player.x > flagPole.x) {
+            currentState = 'FLAG_ANIMATION';
+            flagPole.raiseFlag();
+            player.vx = 0; 
+            player.x = flagPole.x;
+            
+            // --- PLAY LEVEL COMPLETE SOUND ---
+            const bgm = document.getElementById('bgm');
+            const sfxWin = document.getElementById('sfx-win');
+            bgm.pause();
+            sfxWin.currentTime = 0;
+            if(!isMuted) sfxWin.play().catch(e => console.log("SFX play failed", e));
+        }
+    } 
+    
+    if (currentState === 'FLAG_ANIMATION') {
+        flagPole.update();
+        
+        // Animasi Mario Turun Tiang
+        if (player.y < flagPole.y - 40) {
+            player.y += 2; // Kecepatan turun
+        }
+        
+        if (flagPole.reachedTop && !levelEndTriggered) {
+            levelEndTriggered = true;
+            // Delay agar musik menang bermain sebentar sebelum layar muncul
+            setTimeout(() => {
+                 if(currentState === 'FLAG_ANIMATION') { 
+                     currentState = 'LEVEL_END';
+                     document.getElementById('level-score').innerText = score;
+                     document.getElementById('level-complete-screen').style.display = 'flex';
+                 }
+            }, 3000); // Delay 3 detik agar musik selesai/terdengar jelas
+        }
+    }
+
+    let viewW = canvas.width / scale;
+    blocks.forEach(b => {
+         if(b.x > cameraX - 100 && b.x < cameraX + viewW + 100) b.draw();
+    });
+    movingPlatforms.forEach(p => p.draw());
+    enemies.forEach(e => {
+        if(e.x > cameraX - 100 && e.x < cameraX + viewW + 100) e.draw();
+    });
+    projectiles.forEach(p => p.draw());
+    mines.forEach(m => m.draw());
+    powerups.forEach(p => p.draw());
+    
+    flagPole.draw(); 
+    
+    particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        drawRect3D(ctx, p.x - cameraX, p.y, p.size, p.size, p.color);
+        if(p.life <= 0) particles.splice(i, 1);
+    });
+
+    player.draw();
+
+    requestAnimationFrame(loop);
+}
+
+function triggerQuestion() {
+    currentState = 'MODAL';
+    const modal = document.getElementById('question-modal');
+    const title = document.getElementById('q-title');
+    const typeLabel = document.getElementById('q-type-label');
+    const text = document.getElementById('question-text');
+    const container = document.getElementById('options-container');
+    const resultArea = document.getElementById('result-area');
+    const questionContent = document.getElementById('question-content');
+
+    resultArea.style.display = 'none';
+    questionContent.style.display = 'block';
+
+    if (questionQueue.length === 0) {
+        currentQuestion = { type: 'bonus', q: 'Bonus Gratis!', a: true }; 
+        score += 50; 
+        updateHUD();
+        currentState = 'PLAYING'; 
+        loop();
+        return; 
+    }
+    
+    currentQuestion = questionQueue.shift();
+    container.innerHTML = '';
+    modal.style.display = 'block';
+    
+    if (level === 1) { 
+        title.innerText = "SUSUN KATA";
+        typeLabel.innerText = "Lembaga Negara";
+        text.innerHTML = `Petunjuk: ${currentQuestion.clue}<br><br><h1 style='color:#2c3e50; font-size: 2em;'>${currentQuestion.scrambled}</h1>`;
+        
+        const input = document.createElement('input');
+        input.id = 'answer-input';
+        input.placeholder = "KETIK JAWABAN...";
+        input.autocomplete = "off";
+        container.appendChild(input);
+        
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.innerText = 'JAWAB';
+        btn.onclick = () => checkAnswer(input.value.toUpperCase());
+        container.appendChild(btn);
+        
+        setTimeout(() => input.focus(), 100);
+    } 
+    else if (level === 2) { 
+        title.innerText = "BENAR / SALAH";
+        typeLabel.innerText = "Kekuasaan Negara";
+        text.innerText = currentQuestion.q;
+        
+        ['BENAR', 'SALAH'].forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(idx === 0);
+            container.appendChild(btn);
+        });
+    }
+    else { 
+        title.innerText = level === 3 ? "UUD 1945" : (level === 4 ? "TUGAS & FUNGSI" : "HOTS ANALISIS");
+        typeLabel.innerText = "Pilih Jawaban Tepat";
+        text.innerText = currentQuestion.q;
+        
+        currentQuestion.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(idx);
+            container.appendChild(btn);
+        });
+    }
+}
+
+function checkAnswer(ans) {
+    let correct = false;
+    
+    if (level === 1) {
+        if (ans === currentQuestion.word) correct = true;
+    } else if (level === 2) {
+        if (ans === currentQuestion.a) correct = true;
+    } else {
+        if (ans === currentQuestion.correct) correct = true;
+    }
+
+    globalAnswered++;
+
+    if (correct) {
+        score += 100;
+        correctCount++; 
+        globalCorrect++;
+        showFeedback("BENAR!", (canvas.width / scale) / 2, GAME_HEIGHT/2);
+    } else {
+        score -= 50;
+        showFeedback("SALAH!", (canvas.width / scale) / 2, GAME_HEIGHT/2);
+    }
+    updateHUD();
+    showResultUI(correct);
+}
+
+function showResultUI(isCorrect) {
+    const questionContent = document.getElementById('question-content');
+    const resultArea = document.getElementById('result-area');
+    const resultMsg = document.getElementById('result-message');
+    const correctText = document.getElementById('correct-answer-text');
+    const explText = document.getElementById('explanation-text');
+
+    questionContent.style.display = 'none';
+    resultArea.style.display = 'block';
+
+    if(isCorrect) {
+        resultMsg.innerHTML = "<span class='correct-tag'>JAWABAN BENAR! 🎉</span>";
+    } else {
+        resultMsg.innerHTML = "<span class='wrong-tag'>JAWABAN SALAH 😔</span>";
+    }
+
+    let answerString = "";
+    if (level === 1) {
+        answerString = currentQuestion.word;
+    } else if (level === 2) {
+        answerString = currentQuestion.correctText;
+    } else {
+        answerString = currentQuestion.correctText ? currentQuestion.correctText : currentQuestion.options[currentQuestion.correct];
+    }
+
+    correctText.innerText = answerString;
+    explText.innerText = "Pahami materi ini untuk level selanjutnya!";
+}
+
+function closeModalAndResume() {
+    document.getElementById('question-modal').style.display = 'none';
+    currentState = 'PLAYING';
+    loop();
+}
+
+resize();
+
+</script>
+</body>
+</html>
